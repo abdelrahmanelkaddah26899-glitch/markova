@@ -43,6 +43,13 @@ export default function Dashboard() {
 
       console.log("[v0] Raw data from Excel:", jsonData)
       console.log("[v0] First row columns:", jsonData[0] ? Object.keys(jsonData[0]) : "No data")
+      
+      // Log exact column names with their character codes for debugging
+      if (jsonData[0]) {
+        Object.keys(jsonData[0]).forEach(key => {
+          console.log(`[v0] Column: "${key}" | Length: ${key.length} | Values sample:`, jsonData[0][key])
+        })
+      }
 
       // Helper function to parse numbers that may be in accounting format (1,234.00) or negative (1,234.00)
       const parseNumber = (value) => {
@@ -67,11 +74,26 @@ export default function Dashboard() {
         return isNegative ? -num : num
       }
 
-      // Helper function to find column value with multiple possible names
+      // Helper function to find column value with fuzzy matching
       const getColumnValue = (row, possibleNames, defaultValue = 0) => {
+        // First try exact match
         for (const name of possibleNames) {
           if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
             return row[name]
+          }
+        }
+        // Then try partial match (column contains the search term)
+        const rowKeys = Object.keys(row)
+        for (const name of possibleNames) {
+          for (const key of rowKeys) {
+            // Normalize both strings for comparison
+            const normalizedKey = key.trim().replace(/\s+/g, ' ')
+            const normalizedName = name.trim().replace(/\s+/g, ' ')
+            if (normalizedKey.includes(normalizedName) || normalizedName.includes(normalizedKey)) {
+              if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                return row[key]
+              }
+            }
           }
         }
         return defaultValue
@@ -84,10 +106,10 @@ export default function Dashboard() {
       const salesByDay = {}
       const salesByBranch = {}
 
-      // Possible column name variations
+      // Possible column name variations - including partial matches
       const dateColumns = ['التاريخ', 'تاريخ', 'Date', 'date', 'اليوم', 'يوم']
       const branchColumns = ['الفرع', 'فرع', 'Branch', 'branch', 'المتجر', 'متجر', 'Store']
-      const invoiceColumns = ['إجمالي الفاتورة', 'اجمالي الفاتورة', 'الإجمالي', 'الاجمالي', 'إجمالي', 'اجمالي', 'المبيعات', 'مبيعات', 'Total', 'total', 'Sales', 'sales', 'Amount', 'amount', 'المبلغ', 'مبلغ', 'القيمة', 'قيمة']
+      const invoiceColumns = ['اجمالي الفاتورة', 'إجمالي الفاتورة', 'اجمالى الفاتورة', 'إجمالى الفاتورة', 'الإجمالي', 'الاجمالي', 'إجمالي', 'اجمالي', 'اجمالى', 'المبيعات', 'مبيعات', 'Total', 'total', 'Sales', 'sales', 'Amount', 'amount', 'المبلغ', 'مبلغ', 'القيمة', 'قيمة', 'الفاتورة']
       const cashColumns = ['الكاش', 'كاش', 'Cash', 'cash', 'نقدي', 'النقدي', 'نقد']
       const visaColumns = ['الفيزا', 'فيزا', 'Visa', 'visa', 'بطاقة', 'كارت', 'Card', 'card', 'شبكة']
 
