@@ -238,7 +238,10 @@ export default function Dashboard() {
         </div>
 
         <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
-          <h2 className="text-2xl font-bold mb-6">مبيعات الفروع</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">مبيعات الفروع</h2>
+            <span className="text-xl font-bold text-blue-400">{formatNumber(kpis.totalSales)}</span>
+          </div>
 
           <div className="space-y-3">
             {branchData.map((item, index) => (
