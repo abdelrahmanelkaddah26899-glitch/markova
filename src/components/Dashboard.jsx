@@ -28,6 +28,7 @@ export default function Dashboard() {
     lowBranch: '-',
   })
   const [topEmployees, setTopEmployees] = useState([])
+  const [topItems, setTopItems] = useState([])
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
@@ -184,6 +185,47 @@ export default function Dashboard() {
           value: totalVisa,
         },
       ])
+
+      // Read items sheet if it exists
+      const itemSheetName = workbook.SheetNames.find(name => 
+        name.toLowerCase() === 'item' || 
+        name === 'اصناف' || 
+        name === 'منتجات' ||
+        name === 'items'
+      )
+      
+      if (itemSheetName) {
+        const itemWorksheet = workbook.Sheets[itemSheetName]
+        const itemData = XLSX.utils.sheet_to_json(itemWorksheet)
+        
+        console.log("[v0] Item sheet found:", itemSheetName)
+        console.log("[v0] Item data sample:", itemData[0])
+
+        const itemColumns = ['اسم الصنف', 'الصنف', 'صنف', 'Item', 'item', 'المنتج', 'منتج', 'Product', 'product']
+        const quantityColumns = ['الكمية', 'كمية', 'Quantity', 'quantity', 'Qty', 'qty', 'العدد', 'عدد']
+
+        const salesByItem = {}
+
+        itemData.forEach((row) => {
+          const itemName = getColumnValue(row, itemColumns, 'غير محدد') || 'غير محدد'
+          const quantity = parseNumber(getColumnValue(row, quantityColumns, 0))
+
+          salesByItem[itemName] = (salesByItem[itemName] || 0) + quantity
+        })
+
+        const items = Object.keys(salesByItem).map((key) => ({
+          item: key,
+          quantity: salesByItem[key],
+        }))
+        const sortedItems = [...items].sort((a, b) => b.quantity - a.quantity)
+        const top5Items = sortedItems.slice(0, 5)
+
+        console.log("[v0] Top 5 items:", top5Items)
+        setTopItems(top5Items)
+      } else {
+        console.log("[v0] No item sheet found. Available sheets:", workbook.SheetNames)
+        setTopItems([])
+      }
     }
 
     reader.readAsBinaryString(file)
@@ -266,7 +308,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg xl:col-span-1">
           <h2 className="text-2xl font-bold mb-6">الكاش والفيزا</h2>
 
@@ -302,6 +344,26 @@ export default function Dashboard() {
             ))}
             {topEmployees.length === 0 && (
               <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
+          <h2 className="text-2xl font-bold mb-6 text-yellow-400">اعلى 5 اصناف مبيعات</h2>
+          <div className="space-y-3">
+            {topItems.map((item, index) => (
+              <div key={index} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="bg-yellow-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium truncate max-w-[200px]">{item.item}</span>
+                </div>
+                <span className="text-yellow-400 font-bold">{formatNumber(item.quantity)}</span>
+              </div>
+            ))}
+            {topItems.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات - تأكد من وجود شيت item</p>
             )}
           </div>
         </div>
