@@ -240,15 +240,26 @@ export default function Dashboard() {
         <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
           <h2 className="text-2xl font-bold mb-6">مبيعات الفروع</h2>
 
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={branchData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="branch" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="sales" fill="#3b82f6" radius={[10, 10, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="space-y-3">
+            {branchData.map((item, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <span className="w-32 text-right font-medium truncate">{item.branch}</span>
+                <div className="flex-1 bg-slate-700 rounded-full h-8 overflow-hidden">
+                  <div 
+                    className="bg-blue-500 h-full rounded-full flex items-center justify-end px-3"
+                    style={{ 
+                      width: `${Math.max((item.sales / Math.max(...branchData.map(b => b.sales))) * 100, 10)}%` 
+                    }}
+                  >
+                    <span className="text-white text-sm font-bold">{formatNumber(item.sales)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {branchData.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
+            )}
+          </div>
         </div>
       </div>
 
