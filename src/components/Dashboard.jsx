@@ -172,7 +172,7 @@ export default function Dashboard() {
       })
 
       setSalesData(daily)
-      setBranchData(branches)
+      setBranchData(sortedBranches)
 
       setPaymentData([
         {
