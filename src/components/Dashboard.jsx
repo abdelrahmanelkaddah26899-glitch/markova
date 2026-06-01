@@ -41,6 +41,19 @@ export default function Dashboard() {
       const worksheet = workbook.Sheets[sheetName]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
+      console.log("[v0] Raw data from Excel:", jsonData)
+      console.log("[v0] First row columns:", jsonData[0] ? Object.keys(jsonData[0]) : "No data")
+
+      // Helper function to find column value with multiple possible names
+      const getColumnValue = (row, possibleNames, defaultValue = 0) => {
+        for (const name of possibleNames) {
+          if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+            return row[name]
+          }
+        }
+        return defaultValue
+      }
+
       let totalSales = 0
       let totalCash = 0
       let totalVisa = 0
@@ -48,13 +61,24 @@ export default function Dashboard() {
       const salesByDay = {}
       const salesByBranch = {}
 
-      jsonData.forEach((row) => {
-        const date = row['التاريخ'] || '-'
-        const branch = row['الفرع'] || 'غير محدد'
+      // Possible column name variations
+      const dateColumns = ['التاريخ', 'تاريخ', 'Date', 'date', 'اليوم', 'يوم']
+      const branchColumns = ['الفرع', 'فرع', 'Branch', 'branch', 'المتجر', 'متجر', 'Store']
+      const invoiceColumns = ['إجمالي الفاتورة', 'اجمالي الفاتورة', 'الإجمالي', 'الاجمالي', 'إجمالي', 'اجمالي', 'المبيعات', 'مبيعات', 'Total', 'total', 'Sales', 'sales', 'Amount', 'amount', 'المبلغ', 'مبلغ', 'القيمة', 'قيمة']
+      const cashColumns = ['الكاش', 'كاش', 'Cash', 'cash', 'نقدي', 'النقدي', 'نقد']
+      const visaColumns = ['الفيزا', 'فيزا', 'Visa', 'visa', 'بطاقة', 'كارت', 'Card', 'card', 'شبكة']
 
-        const invoice = Number(row['إجمالي الفاتورة'] || 0)
-        const cash = Number(row['الكاش'] || 0)
-        const visa = Number(row['الفيزا'] || 0)
+      jsonData.forEach((row, index) => {
+        const date = getColumnValue(row, dateColumns, '-') || '-'
+        const branch = getColumnValue(row, branchColumns, 'غير محدد') || 'غير محدد'
+
+        const invoice = Number(getColumnValue(row, invoiceColumns, 0)) || 0
+        const cash = Number(getColumnValue(row, cashColumns, 0)) || 0
+        const visa = Number(getColumnValue(row, visaColumns, 0)) || 0
+
+        if (index === 0) {
+          console.log("[v0] First row parsed values:", { date, branch, invoice, cash, visa })
+        }
 
         totalSales += invoice
         totalCash += cash
@@ -63,6 +87,8 @@ export default function Dashboard() {
         salesByDay[date] = (salesByDay[date] || 0) + invoice
         salesByBranch[branch] = (salesByBranch[branch] || 0) + invoice
       })
+
+      console.log("[v0] Totals calculated:", { totalSales, totalCash, totalVisa })
 
       const daily = Object.keys(salesByDay).map((key) => ({
         day: key,
