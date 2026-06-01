@@ -29,6 +29,7 @@ export default function Dashboard() {
   })
   const [topEmployees, setTopEmployees] = useState([])
   const [topItems, setTopItems] = useState([])
+  const [branchItemsReport, setBranchItemsReport] = useState([])
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
