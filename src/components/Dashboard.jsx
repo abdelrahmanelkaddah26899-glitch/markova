@@ -28,7 +28,6 @@ export default function Dashboard() {
     lowBranch: '-',
   })
   const [topEmployees, setTopEmployees] = useState([])
-  const [lowEmployees, setLowEmployees] = useState([])
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
@@ -160,10 +159,8 @@ export default function Dashboard() {
       }))
       const sortedEmployees = [...employees].sort((a, b) => b.sales - a.sales)
       const top5Employees = sortedEmployees.slice(0, 5)
-      const low5Employees = sortedEmployees.slice(-5).reverse()
 
       setTopEmployees(top5Employees)
-      setLowEmployees(low5Employees)
 
       setKpis({
         totalSales,
@@ -255,7 +252,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg xl:col-span-1">
           <h2 className="text-2xl font-bold mb-6">الكاش والفيزا</h2>
 
@@ -295,25 +292,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
-          <h2 className="text-2xl font-bold mb-6 text-red-400">اقل 5 موظفين مبيعات</h2>
-          <div className="space-y-3">
-            {lowEmployees.map((emp, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <span className="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                    {index + 1}
-                  </span>
-                  <span className="font-medium">{emp.employee}</span>
-                </div>
-                <span className="text-red-400 font-bold">{formatNumber(emp.sales)}</span>
-              </div>
-            ))}
-            {lowEmployees.length === 0 && (
-              <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
-            )}
-          </div>
-        </div>
+
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 mt-6">
