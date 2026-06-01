@@ -44,6 +44,29 @@ export default function Dashboard() {
       console.log("[v0] Raw data from Excel:", jsonData)
       console.log("[v0] First row columns:", jsonData[0] ? Object.keys(jsonData[0]) : "No data")
 
+      // Helper function to parse numbers that may be in accounting format (1,234.00) or negative (1,234.00)
+      const parseNumber = (value) => {
+        if (value === undefined || value === null || value === '' || value === '-') {
+          return 0
+        }
+        // If already a number, return it
+        if (typeof value === 'number') {
+          return value
+        }
+        // Convert to string and handle accounting format
+        let str = String(value).trim()
+        // Check if negative (wrapped in parentheses)
+        const isNegative = str.startsWith('(') && str.endsWith(')')
+        if (isNegative) {
+          str = str.slice(1, -1) // Remove parentheses
+        }
+        // Remove commas and spaces
+        str = str.replace(/,/g, '').replace(/\s/g, '')
+        const num = parseFloat(str)
+        if (isNaN(num)) return 0
+        return isNegative ? -num : num
+      }
+
       // Helper function to find column value with multiple possible names
       const getColumnValue = (row, possibleNames, defaultValue = 0) => {
         for (const name of possibleNames) {
@@ -72,9 +95,9 @@ export default function Dashboard() {
         const date = getColumnValue(row, dateColumns, '-') || '-'
         const branch = getColumnValue(row, branchColumns, 'غير محدد') || 'غير محدد'
 
-        const invoice = Number(getColumnValue(row, invoiceColumns, 0)) || 0
-        const cash = Number(getColumnValue(row, cashColumns, 0)) || 0
-        const visa = Number(getColumnValue(row, visaColumns, 0)) || 0
+        const invoice = parseNumber(getColumnValue(row, invoiceColumns, 0))
+        const cash = parseNumber(getColumnValue(row, cashColumns, 0))
+        const visa = parseNumber(getColumnValue(row, visaColumns, 0))
 
         if (index === 0) {
           console.log("[v0] First row parsed values:", { date, branch, invoice, cash, visa })
