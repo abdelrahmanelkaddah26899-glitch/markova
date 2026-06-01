@@ -27,6 +27,9 @@ export default function Dashboard() {
     topBranch: '-',
     lowBranch: '-',
   })
+  const [topEmployees, setTopEmployees] = useState([])
+  const [topItems, setTopItems] = useState([])
+  const [branchItemsReport, setBranchItemsReport] = useState([])
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
@@ -41,20 +44,92 @@ export default function Dashboard() {
       const worksheet = workbook.Sheets[sheetName]
       const jsonData = XLSX.utils.sheet_to_json(worksheet)
 
+      console.log("[v0] Raw data from Excel:", jsonData)
+      console.log("[v0] First row columns:", jsonData[0] ? Object.keys(jsonData[0]) : "No data")
+      
+      // Log exact column names with their character codes for debugging
+      if (jsonData[0]) {
+        Object.keys(jsonData[0]).forEach(key => {
+          console.log(`[v0] Column: "${key}" | Length: ${key.length} | Values sample:`, jsonData[0][key])
+        })
+      }
+
+      // Helper function to parse numbers that may be in accounting format (1,234.00) or negative (1,234.00)
+      const parseNumber = (value) => {
+        if (value === undefined || value === null || value === '' || value === '-') {
+          return 0
+        }
+        // If already a number, return it
+        if (typeof value === 'number') {
+          return value
+        }
+        // Convert to string and handle accounting format
+        let str = String(value).trim()
+        // Check if negative (wrapped in parentheses)
+        const isNegative = str.startsWith('(') && str.endsWith(')')
+        if (isNegative) {
+          str = str.slice(1, -1) // Remove parentheses
+        }
+        // Remove commas and spaces
+        str = str.replace(/,/g, '').replace(/\s/g, '')
+        const num = parseFloat(str)
+        if (isNaN(num)) return 0
+        return isNegative ? -num : num
+      }
+
+      // Helper function to find column value with fuzzy matching
+      const getColumnValue = (row, possibleNames, defaultValue = 0) => {
+        // First try exact match
+        for (const name of possibleNames) {
+          if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+            return row[name]
+          }
+        }
+        // Then try partial match (column contains the search term)
+        const rowKeys = Object.keys(row)
+        for (const name of possibleNames) {
+          for (const key of rowKeys) {
+            // Normalize both strings for comparison
+            const normalizedKey = key.trim().replace(/\s+/g, ' ')
+            const normalizedName = name.trim().replace(/\s+/g, ' ')
+            if (normalizedKey.includes(normalizedName) || normalizedName.includes(normalizedKey)) {
+              if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                return row[key]
+              }
+            }
+          }
+        }
+        return defaultValue
+      }
+
       let totalSales = 0
       let totalCash = 0
       let totalVisa = 0
 
       const salesByDay = {}
       const salesByBranch = {}
+      const salesByEmployee = {}
 
-      jsonData.forEach((row) => {
-        const date = row['التاريخ'] || '-'
-        const branch = row['الفرع'] || 'غير محدد'
+      // Possible column name variations - including partial matches
+      const dateColumns = ['التاريخ', 'تاريخ', 'Date', 'date', 'اليوم', 'يوم']
+      const branchColumns = ['الفرع', 'فرع', 'Branch', 'branch', 'المتجر', 'متجر', 'Store']
+      const employeeColumns = ['الموظف', 'موظف', 'Employee', 'employee', 'البائع', 'بائع', 'اسم الموظف', 'اسم البائع']
+      const invoiceColumns = ['اجمالي الفاتورة', 'إجمالي الفاتورة', 'اجمالى الفاتورة', 'إجمالى الفاتورة', 'الإجمالي', 'الاجمالي', 'إجمالي', 'اجمالي', 'اجمالى', 'المبيعات', 'مبيعات', 'Total', 'total', 'Sales', 'sales', 'Amount', 'amount', 'المبلغ', 'مبلغ', 'القيمة', 'قيمة', 'الفاتورة']
+      const cashColumns = ['الكاش', 'كاش', 'Cash', 'cash', 'نقدي', 'النقدي', 'نقد']
+      const visaColumns = ['الفيزا', 'فيزا', 'Visa', 'visa', 'بطاقة', 'كارت', 'Card', 'card', 'شبكة']
 
-        const invoice = Number(row['إجمالي الفاتورة'] || 0)
-        const cash = Number(row['الكاش'] || 0)
-        const visa = Number(row['الفيزا'] || 0)
+      jsonData.forEach((row, index) => {
+        const date = getColumnValue(row, dateColumns, '-') || '-'
+        const branch = getColumnValue(row, branchColumns, 'غير محدد') || 'غير محدد'
+        const employee = getColumnValue(row, employeeColumns, 'غير محدد') || 'غير محدد'
+
+        const invoice = parseNumber(getColumnValue(row, invoiceColumns, 0))
+        const cash = parseNumber(getColumnValue(row, cashColumns, 0))
+        const visa = parseNumber(getColumnValue(row, visaColumns, 0))
+
+        if (index === 0) {
+          console.log("[v0] First row parsed values:", { date, branch, employee, invoice, cash, visa })
+        }
 
         totalSales += invoice
         totalCash += cash
@@ -62,7 +137,10 @@ export default function Dashboard() {
 
         salesByDay[date] = (salesByDay[date] || 0) + invoice
         salesByBranch[branch] = (salesByBranch[branch] || 0) + invoice
+        salesByEmployee[employee] = (salesByEmployee[employee] || 0) + invoice
       })
+
+      console.log("[v0] Totals calculated:", { totalSales, totalCash, totalVisa })
 
       const daily = Object.keys(salesByDay).map((key) => ({
         day: key,
@@ -76,6 +154,16 @@ export default function Dashboard() {
 
       const sortedBranches = [...branches].sort((a, b) => b.sales - a.sales)
 
+      // Calculate employee rankings
+      const employees = Object.keys(salesByEmployee).map((key) => ({
+        employee: key,
+        sales: salesByEmployee[key],
+      }))
+      const sortedEmployees = [...employees].sort((a, b) => b.sales - a.sales)
+      const top5Employees = sortedEmployees.slice(0, 5)
+
+      setTopEmployees(top5Employees)
+
       setKpis({
         totalSales,
         totalCash,
@@ -86,7 +174,7 @@ export default function Dashboard() {
       })
 
       setSalesData(daily)
-      setBranchData(branches)
+      setBranchData(sortedBranches)
 
       setPaymentData([
         {
@@ -98,6 +186,47 @@ export default function Dashboard() {
           value: totalVisa,
         },
       ])
+
+      // Read items sheet if it exists
+      const itemSheetName = workbook.SheetNames.find(name => 
+        name.toLowerCase() === 'item' || 
+        name === 'اصناف' || 
+        name === 'منتجات' ||
+        name === 'items'
+      )
+      
+      if (itemSheetName) {
+        const itemWorksheet = workbook.Sheets[itemSheetName]
+        const itemData = XLSX.utils.sheet_to_json(itemWorksheet)
+        
+        console.log("[v0] Item sheet found:", itemSheetName)
+        console.log("[v0] Item data sample:", itemData[0])
+
+        const itemColumns = ['اسم الصنف', 'الصنف', 'صنف', 'Item', 'item', 'المنتج', 'منتج', 'Product', 'product']
+        const quantityColumns = ['الكمية', 'كمية', 'Quantity', 'quantity', 'Qty', 'qty', 'العدد', 'عدد']
+
+        const salesByItem = {}
+
+        itemData.forEach((row) => {
+          const itemName = getColumnValue(row, itemColumns, 'غير محدد') || 'غير محدد'
+          const quantity = parseNumber(getColumnValue(row, quantityColumns, 0))
+
+          salesByItem[itemName] = (salesByItem[itemName] || 0) + quantity
+        })
+
+        const items = Object.keys(salesByItem).map((key) => ({
+          item: key,
+          quantity: salesByItem[key],
+        }))
+        const sortedItems = [...items].sort((a, b) => b.quantity - a.quantity)
+        const top5Items = sortedItems.slice(0, 5)
+
+        console.log("[v0] Top 5 items:", top5Items)
+        setTopItems(top5Items)
+      } else {
+        console.log("[v0] No item sheet found. Available sheets:", workbook.SheetNames)
+        setTopItems([])
+      }
     }
 
     reader.readAsBinaryString(file)
@@ -152,17 +281,31 @@ export default function Dashboard() {
         </div>
 
         <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
-          <h2 className="text-2xl font-bold mb-6">مبيعات الفروع</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">مبيعات الفروع</h2>
+            <span className="text-xl font-bold text-blue-400">{formatNumber(kpis.totalSales)}</span>
+          </div>
 
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={branchData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="branch" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="sales" fill="#3b82f6" radius={[10, 10, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="space-y-3">
+            {branchData.map((item, index) => (
+              <div key={index} className="flex items-center gap-4">
+                <span className="w-32 text-right font-medium truncate">{item.branch}</span>
+                <div className="flex-1 bg-slate-700 rounded-full h-8 overflow-hidden">
+                  <div 
+                    className="bg-blue-500 h-full rounded-full flex items-center justify-end px-3"
+                    style={{ 
+                      width: `${Math.max((item.sales / Math.max(...branchData.map(b => b.sales))) * 100, 10)}%` 
+                    }}
+                  >
+                    <span className="text-white text-sm font-bold">{formatNumber(item.sales)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {branchData.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -186,7 +329,51 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg xl:col-span-2 overflow-auto">
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
+          <h2 className="text-2xl font-bold mb-6 text-green-400">اعلى 5 موظفين مبيعات</h2>
+          <div className="space-y-3">
+            {topEmployees.map((emp, index) => (
+              <div key={index} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium">{emp.employee}</span>
+                </div>
+                <span className="text-green-400 font-bold">{formatNumber(emp.sales)}</span>
+              </div>
+            ))}
+            {topEmployees.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
+          <h2 className="text-2xl font-bold mb-6 text-yellow-400">اعلى 5 اصناف مبيعات</h2>
+          <div className="space-y-3">
+            {topItems.map((item, index) => (
+              <div key={index} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="bg-yellow-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium truncate max-w-[200px]">{item.item}</span>
+                </div>
+                <span className="text-yellow-400 font-bold">{formatNumber(item.quantity)}</span>
+              </div>
+            ))}
+            {topItems.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات - تأكد من وجود شيت item</p>
+            )}
+          </div>
+        </div>
+
+
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 mt-6">
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg overflow-auto">
           <h2 className="text-2xl font-bold mb-6">تفاصيل المبيعات</h2>
 
           <table className="w-full text-right">
