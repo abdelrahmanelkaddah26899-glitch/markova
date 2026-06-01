@@ -27,6 +27,8 @@ export default function Dashboard() {
     topBranch: '-',
     lowBranch: '-',
   })
+  const [topEmployees, setTopEmployees] = useState([])
+  const [lowEmployees, setLowEmployees] = useState([])
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
@@ -105,10 +107,12 @@ export default function Dashboard() {
 
       const salesByDay = {}
       const salesByBranch = {}
+      const salesByEmployee = {}
 
       // Possible column name variations - including partial matches
       const dateColumns = ['التاريخ', 'تاريخ', 'Date', 'date', 'اليوم', 'يوم']
       const branchColumns = ['الفرع', 'فرع', 'Branch', 'branch', 'المتجر', 'متجر', 'Store']
+      const employeeColumns = ['الموظف', 'موظف', 'Employee', 'employee', 'البائع', 'بائع', 'اسم الموظف', 'اسم البائع']
       const invoiceColumns = ['اجمالي الفاتورة', 'إجمالي الفاتورة', 'اجمالى الفاتورة', 'إجمالى الفاتورة', 'الإجمالي', 'الاجمالي', 'إجمالي', 'اجمالي', 'اجمالى', 'المبيعات', 'مبيعات', 'Total', 'total', 'Sales', 'sales', 'Amount', 'amount', 'المبلغ', 'مبلغ', 'القيمة', 'قيمة', 'الفاتورة']
       const cashColumns = ['الكاش', 'كاش', 'Cash', 'cash', 'نقدي', 'النقدي', 'نقد']
       const visaColumns = ['الفيزا', 'فيزا', 'Visa', 'visa', 'بطاقة', 'كارت', 'Card', 'card', 'شبكة']
@@ -116,13 +120,14 @@ export default function Dashboard() {
       jsonData.forEach((row, index) => {
         const date = getColumnValue(row, dateColumns, '-') || '-'
         const branch = getColumnValue(row, branchColumns, 'غير محدد') || 'غير محدد'
+        const employee = getColumnValue(row, employeeColumns, 'غير محدد') || 'غير محدد'
 
         const invoice = parseNumber(getColumnValue(row, invoiceColumns, 0))
         const cash = parseNumber(getColumnValue(row, cashColumns, 0))
         const visa = parseNumber(getColumnValue(row, visaColumns, 0))
 
         if (index === 0) {
-          console.log("[v0] First row parsed values:", { date, branch, invoice, cash, visa })
+          console.log("[v0] First row parsed values:", { date, branch, employee, invoice, cash, visa })
         }
 
         totalSales += invoice
@@ -131,6 +136,7 @@ export default function Dashboard() {
 
         salesByDay[date] = (salesByDay[date] || 0) + invoice
         salesByBranch[branch] = (salesByBranch[branch] || 0) + invoice
+        salesByEmployee[employee] = (salesByEmployee[employee] || 0) + invoice
       })
 
       console.log("[v0] Totals calculated:", { totalSales, totalCash, totalVisa })
@@ -146,6 +152,18 @@ export default function Dashboard() {
       }))
 
       const sortedBranches = [...branches].sort((a, b) => b.sales - a.sales)
+
+      // Calculate employee rankings
+      const employees = Object.keys(salesByEmployee).map((key) => ({
+        employee: key,
+        sales: salesByEmployee[key],
+      }))
+      const sortedEmployees = [...employees].sort((a, b) => b.sales - a.sales)
+      const top5Employees = sortedEmployees.slice(0, 5)
+      const low5Employees = sortedEmployees.slice(-5).reverse()
+
+      setTopEmployees(top5Employees)
+      setLowEmployees(low5Employees)
 
       setKpis({
         totalSales,
@@ -257,7 +275,49 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg xl:col-span-2 overflow-auto">
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
+          <h2 className="text-2xl font-bold mb-6 text-green-400">اعلى 5 موظفين مبيعات</h2>
+          <div className="space-y-3">
+            {topEmployees.map((emp, index) => (
+              <div key={index} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium">{emp.employee}</span>
+                </div>
+                <span className="text-green-400 font-bold">{formatNumber(emp.sales)}</span>
+              </div>
+            ))}
+            {topEmployees.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg">
+          <h2 className="text-2xl font-bold mb-6 text-red-400">اقل 5 موظفين مبيعات</h2>
+          <div className="space-y-3">
+            {lowEmployees.map((emp, index) => (
+              <div key={index} className="flex justify-between items-center p-3 bg-slate-800 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <span className="bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <span className="font-medium">{emp.employee}</span>
+                </div>
+                <span className="text-red-400 font-bold">{formatNumber(emp.sales)}</span>
+              </div>
+            ))}
+            {lowEmployees.length === 0 && (
+              <p className="text-slate-400 text-center py-4">لا توجد بيانات</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 mt-6">
+        <div className="bg-[#1e293b] rounded-3xl p-6 border border-slate-700 shadow-lg overflow-auto">
           <h2 className="text-2xl font-bold mb-6">تفاصيل المبيعات</h2>
 
           <table className="w-full text-right">
